@@ -1,4 +1,4 @@
-import main as m
+import formulas as m
 import decimal as d
 import unittest
 
