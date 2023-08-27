@@ -1,6 +1,11 @@
 import decimal as d
 
 
+"""
+None of this takes into account the compounding interest.
+I assume it becomes important for large loans over many years.
+"""
+
 MONTHS_IN_YEAR = 12
 
 def percentileToRate(percentile : str):
@@ -14,8 +19,15 @@ def montlyPaymentYears(principal :int, years: int, interestPercent: str):
     nt = MONTHS_IN_YEAR * years
     bot = 1 - ( 1 + rate / MONTHS_IN_YEAR)**-nt
     
-    return float(round(top/bot,2)) # rounding to 
+    return d.Decimal(round(top/bot,2)) # rounding to 
 
+
+# M= Co ((1+i/m)^(n*m)*(i/m))/((1+ i/m)^(n*m)-1)
+# M: Mensualidad
+# Co: Capital del préstamo
+# n: Número de años
+# i: Tipo nominal de interés anual en tanto por uno
+# m: Número de cuotas en el año (12 si es mensual)
 def montlyPaymentMonths(principal :d.Decimal, months: int, interestPercent: str):
     rate = d.Decimal(interestPercent) / 100
 
@@ -24,10 +36,10 @@ def montlyPaymentMonths(principal :d.Decimal, months: int, interestPercent: str)
     top = principal * montlyInterest
     bot = 1 - ( 1 + montlyInterest )**-months
     
-    return float(round(top/bot,2)) # rounding 2 decimals 
+    return d.Decimal(round(top/bot,2)) # rounding 2 decimals 
 
 # https://money.stackexchange.com/questions/94140/what-is-the-math-used-to-calculate-the-impact-that-overpaying-a-mortgage-has-an 
-def monthlyAmortizationTable(balanceRemaining :d.Decimal, interestPercent: str, moneyPayed :d.Decimal):
+def monthlyAmortizationTable(balanceRemaining :d.Decimal, interestPercent :str, moneyPayed :d.Decimal):
     rate = d.Decimal(interestPercent) / 100 
 
     interest =  round(d.Decimal(balanceRemaining * (rate / MONTHS_IN_YEAR)) ,2)
@@ -41,52 +53,26 @@ def monthlyAmortizationTable(balanceRemaining :d.Decimal, interestPercent: str, 
 
     return interest, principalContributed
 
-# # # # # # # # # # # # #
-# Simulations
-# # # # # # # # # # # # #
 
-def mixedMortgage():
-    balance = d.Decimal(105000)
+def silentMonthlyAmortizationTable(balanceRemaining :d.Decimal, interestPercent :str, moneyPayed :d.Decimal):
+    rate = d.Decimal(interestPercent) / 100 
+    interest =  round(d.Decimal(balanceRemaining * (rate / MONTHS_IN_YEAR)) ,2)
+    principalContributed = round(moneyPayed - interest, 2)
+    return interest, principalContributed
 
-    # Importat. 
-    # The monthly payment for the fixed part is calculated for the full loan duration (10 years in this case).
-    # Basically "how much is your monthly if you were to pay 2.25 for the entire duration and when your fixed part ends we see".
-    fixedPartInterest = "2.25"
-    fixedDurationMonths = int(MONTHS_IN_YEAR * 5)
-    fixedMonthlyPayment = montlyPaymentMonths(balance, 10 * MONTHS_IN_YEAR, fixedPartInterest)
-       
-    totalInterestLost = 0
-    for _ in range(fixedDurationMonths):
-        interestLost , principalContributed,  = monthlyAmortizationTable(balance, fixedPartInterest, d.Decimal(fixedMonthlyPayment))
-        balance = d.Decimal(balance - principalContributed)
-        totalInterestLost = totalInterestLost + interestLost
-    fixedPartInterest = totalInterestLost;
 
-    # Importat. 
-    # The monthly payment for the var part is caclulated after the fixed part has ended based on `left to pay` and `remaining duration`
-    # It's effectively acts as a re-mortgage.
-    euribor = 4
-    bankInterest = 1.8
-    varPartInterest = str(euribor + bankInterest)
-    varDurationMonths = int(MONTHS_IN_YEAR * 5)
-    varMonthlyPayment = montlyPaymentMonths(balance, 5 * MONTHS_IN_YEAR, varPartInterest)
-    
+"""
+Useful to see any hidden fees for maintaing the loan.
+Plug in the fees that you know of, if the resulting APR (aka TAE) is lower than what the bank tells you
+the contract might include some extra fee that you have missed.
 
-    for _ in range(varDurationMonths):
-        interestLost , principalContributed,  = monthlyAmortizationTable(balance, varPartInterest, d.Decimal(varMonthlyPayment))
-        balance = d.Decimal(balance - principalContributed)
-        totalInterestLost = totalInterestLost + interestLost
-
-    varPartInterest = totalInterestLost - fixedPartInterest
-
-    
-    print("Fix monthly " + str(fixedMonthlyPayment))
-    print("Var monthly " + str(varMonthlyPayment))
-    
-    print("Fixed={} Var={} Total={} Balance={}".format(fixedPartInterest,varPartInterest, totalInterestLost, balance))
-    return
-
-if __name__ == '__main__':
-    mixedMortgage()
+https://www.wallstreetmojo.com/annual-percentage-rate-apr/
+https://www.youtube.com/watch?v=GNihZ4lfYCA
+"""
+def monthlyApr(balanceRemaining :d.Decimal, interestPercent :str, loanDurationMonths :int, monthlyServiceChange :d.Decimal): 
+    rate = d.Decimal(interestPercent) / 100 
+    interest = balanceRemaining * (rate / MONTHS_IN_YEAR)
+    aprRate = ((interest + monthlyServiceChange) / balanceRemaining) / loanDurationMonths * 100
+    return (aprRate * 100)
 
 

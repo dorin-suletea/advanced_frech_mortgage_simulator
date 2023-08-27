@@ -5,8 +5,8 @@ import unittest
 class TestSum(unittest.TestCase):
 
     def test_montly_payment(self):
-        montly = m.montlyPaymentYears(300000,30, '6.0')
-        self.assertEqual(montly,1798.65)
+        monthly = m.montlyPaymentYears(300000,30, '6.0')
+        self.assertEqual(round(d.Decimal(1798.65),2),monthly)
 
 
     def test_using_months(self):
@@ -27,9 +27,9 @@ class TestSum(unittest.TestCase):
         totalCost = round(montlyPaymet * 15 * 12, 2)
         loanInterest = round(totalCost - principal, 2)
 
-        self.assertEqual(687.84,montlyPaymet)
-        self.assertEqual(18811.2, loanInterest)
-        self.assertEqual(123811.2, totalCost)
+        self.assertEqual(round(d.Decimal(687.84),2),montlyPaymet)
+        self.assertEqual(round(d.Decimal(18811.2),2), loanInterest)
+        self.assertEqual(round(d.Decimal(123811.2),2), totalCost)
 
     def test_amortization_table(self):
         balance = d.Decimal(105000)
@@ -45,8 +45,27 @@ class TestSum(unittest.TestCase):
             balance = d.Decimal(balance - principalContributed)
             totalInterestLost = totalInterestLost + interestLost
 
-        self.assertEqual(18810.94, float(totalInterestLost))
-        self.assertEqual(-0.26, float(balance)) # should be 0 but we lost some accuracy with 2dp rounding
+        self.assertEqual(round(d.Decimal(18810.94),2), totalInterestLost)
+        self.assertEqual(round(d.Decimal(-0.26),2), balance) # should be 0 but we lost some accuracy with 2dp rounding
+
+
+    def test_apr(self):
+        balance = d.Decimal(500) 
+        yearlyInterest = "5"
+        
+        monthlyLoanPayment = m.montlyPaymentMonths(balance, 12, yearlyInterest)
+        monthlyFees = d.Decimal(7) / d.Decimal(12)
+
+        aprAccumulator = 0
+        for _ in range(12): 
+            monthlyApr = m.monthlyApr(balance, yearlyInterest, 12, monthlyFees)
+            _, towardsPrincipal = m.interestToPrincipalRatio(balance, yearlyInterest, monthlyLoanPayment)
+            balance -= towardsPrincipal
+            aprAccumulator += monthlyApr
+
+        self.assertEqual(round(d.Decimal(6.44),2), d.Decimal(round(aprAccumulator/12,2)))
+
+
 
 if __name__ == '__main__':
     unittest.main()

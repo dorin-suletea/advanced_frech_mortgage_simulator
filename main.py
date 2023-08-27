@@ -131,11 +131,43 @@ def mixedMortgageWithSelfInposedPayment(loan: d.Decimal, fixedInterest: str, fix
     return
  
 
+def validateAPRForMixedMortgage(loan: d.Decimal, fixedInterest: str, fixedTermYears: int, varInterest: str, varTermYears: int, yearlyServiceCharge :d.Decimal):
+    balance = loan
+    totalLoanDuration = fixedTermYears + varTermYears
+    aprAccumulator = d.Decimal(0)
+
+    fixedDurationMonths = int(m.MONTHS_IN_YEAR * fixedTermYears)
+    fixedMonthlyPayment = m.montlyPaymentMonths(balance, totalLoanDuration * m.MONTHS_IN_YEAR, fixedInterest)       
+    interestForFixed = 0
+    for _ in range(fixedDurationMonths):
+        aprAccumulator += m.monthlyApr(balance, fixedInterest, fixedDurationMonths, yearlyServiceCharge/m.MONTHS_IN_YEAR) 
+        interestLost , principalContributed,  = m.silentMonthlyAmortizationTable(balance, fixedInterest, d.Decimal(fixedMonthlyPayment))
+        balance = d.Decimal(balance - principalContributed)
+        interestForFixed += interestLost
+
+
+    varDurationMonths = int(m.MONTHS_IN_YEAR * varTermYears)
+    varMonthlyPayment = m.montlyPaymentMonths(balance, varDurationMonths, varInterest)
+    interestForVar = 0
+    for _ in range(varDurationMonths):
+        aprAccumulator += m.monthlyApr(balance, varInterest, varDurationMonths, yearlyServiceCharge/m.MONTHS_IN_YEAR) 
+        interestLost , principalContributed,  = m.silentMonthlyAmortizationTable(balance, varInterest, d.Decimal(varMonthlyPayment))
+        balance = d.Decimal(balance - principalContributed)
+        interestForVar += interestLost
+
+    return aprAccumulator / (fixedDurationMonths + varDurationMonths)
+
+
 if __name__ == '__main__':
-    # mixedMortgage(d.Decimal(105000),"2.25", 5, "5.8", 10)
+    tasacion = d.Decimal((d.Decimal(556) / 15))
+    serviceCharge = d.Decimal(120 + 95) # cuenta + seguro danos + tasacion spread over 15 years
+    print("Avg APR = " + str(validateAPRForMixedMortgage(d.Decimal(105000),"2.25", 5, "5.999", 10,  serviceCharge)))
+
+
+    #mixedMortgage(d.Decimal(105000),"2.25", 5, "6", 10)
 
     # mixedMortgageWithOverPayment(d.Decimal(105000),"2.25", 5, "5.8", 5, d.Decimal(1000))
-     mixedMortgageWithOverPayment(d.Decimal(105000),"2.25", 5, "5.8", 10, d.Decimal(1500))
+    # mixedMortgageWithOverPayment(d.Decimal(105000),"2.25", 5, "5.8", 10, d.Decimal(1500))
 
     #mixedMortgageWithSelfInposedPayment(d.Decimal(105000),"2.25", 5, "5.8", 5, d.Decimal(2000))
     #mixedMortgageWithSelfInposedPayment(d.Decimal(105000),"2.25", 5, "5.8", 10, d.Decimal(2000))
